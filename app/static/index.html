@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deal Finder</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background-color: #f5f5f5;
+        color: #222;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(135deg, #f8fafc, #dbeafe);
+      }
+
+      header {
+        background: #1d4ed8;
+        color: #fff;
+        padding: 1.5rem 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        letter-spacing: 0.03em;
+      }
+
+      main {
+        flex: 1;
+        padding: 2rem;
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+        backdrop-filter: blur(6px);
+      }
+
+      label {
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+        display: inline-block;
+      }
+
+      select,
+      input[type="text"] {
+        width: 100%;
+        padding: 0.7rem 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(99, 102, 241, 0.25);
+        font-size: 1rem;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      select:focus,
+      input[type="text"]:focus {
+        border-color: #6366f1;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 0.75rem 1rem;
+      }
+
+      thead {
+        background: rgba(99, 102, 241, 0.12);
+      }
+
+      tbody tr {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      }
+
+      tbody tr:last-child {
+        border-bottom: none;
+      }
+
+      tbody tr:hover {
+        background: rgba(59, 130, 246, 0.08);
+      }
+
+      .product-name {
+        font-weight: 600;
+      }
+
+      .meta {
+        color: #475569;
+        font-size: 0.95rem;
+      }
+
+      .message {
+        padding: 1rem;
+        background: rgba(59, 130, 246, 0.08);
+        border-radius: 0.75rem;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        font-weight: 500;
+      }
+
+      footer {
+        text-align: center;
+        padding: 1rem 0;
+        color: #475569;
+        font-size: 0.9rem;
+      }
+
+      @media (min-width: 900px) {
+        main {
+          grid-template-columns: 320px 1fr;
+          align-items: start;
+        }
+
+        .filters {
+          position: sticky;
+          top: 2rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Deal Finder</h1>
+      <p>Quickly explore the best prices for popular products in your area.</p>
+    </header>
+
+    <main>
+      <section class="card filters">
+        <div>
+          <label for="area-select">Choose an area</label>
+          <select id="area-select">
+            <option value="" disabled selected>Loading areas…</option>
+          </select>
+        </div>
+
+        <div style="margin-top: 1rem">
+          <label for="product-search">Filter products</label>
+          <input
+            type="text"
+            id="product-search"
+            placeholder="Start typing to filter the list"
+            autocomplete="off"
+          />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Cheapest products</h2>
+        <p class="meta" id="summary">Select an area to see available deals.</p>
+        <div id="feedback" class="message" hidden></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Best Price</th>
+              <th>Store</th>
+            </tr>
+          </thead>
+          <tbody id="products-body"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <footer>&copy; <span id="year"></span> Deal Finder demo</footer>
+
+    <script>
+      const areaSelect = document.getElementById("area-select");
+      const productsBody = document.getElementById("products-body");
+      const productSearch = document.getElementById("product-search");
+      const feedback = document.getElementById("feedback");
+      const summary = document.getElementById("summary");
+      const year = document.getElementById("year");
+
+      year.textContent = new Date().getFullYear();
+
+      const API_ROOT = "/";
+
+      function renderProducts(products, filterTerm = "") {
+        productsBody.innerHTML = "";
+        const term = filterTerm.trim().toLowerCase();
+        const filtered = products.filter((product) =>
+          product.name.toLowerCase().includes(term)
+        );
+
+        if (filtered.length === 0) {
+          productsBody.innerHTML = `<tr><td colspan="3">No products match your filter.</td></tr>`;
+          return;
+        }
+
+        for (const product of filtered) {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="product-name">${product.name}</td>
+            <td>$${product.price.toFixed(2)}</td>
+            <td>${product.store}</td>
+          `;
+          row.addEventListener("click", () => showProductDetails(product));
+          productsBody.appendChild(row);
+        }
+      }
+
+      function showFeedback(message, isError = false) {
+        feedback.textContent = message;
+        feedback.hidden = false;
+        feedback.style.background = isError
+          ? "rgba(248, 113, 113, 0.18)"
+          : "rgba(59, 130, 246, 0.08)";
+        feedback.style.borderColor = isError
+          ? "rgba(248, 113, 113, 0.4)"
+          : "rgba(59, 130, 246, 0.2)";
+      }
+
+      function hideFeedback() {
+        feedback.hidden = true;
+      }
+
+      async function fetchAreas() {
+        try {
+          const response = await fetch(`${API_ROOT}areas`);
+          if (!response.ok) throw new Error(`Unable to load areas: ${response.status}`);
+          const data = await response.json();
+          populateAreas(data.areas);
+        } catch (error) {
+          console.error(error);
+          areaSelect.innerHTML = "<option value=\"\">Unable to load areas</option>";
+          showFeedback("There was a problem loading the available areas.", true);
+        }
+      }
+
+      function populateAreas(areas) {
+        areaSelect.innerHTML = "";
+        if (!areas || areas.length === 0) {
+          areaSelect.innerHTML =
+            '<option value="" disabled selected>No areas available</option>';
+          return;
+        }
+
+        areaSelect.innerHTML =
+          '<option value="" disabled selected>Select an area</option>' +
+          areas.map((area) => `<option value="${area}">${area}</option>`).join("");
+      }
+
+      async function fetchProducts(area) {
+        hideFeedback();
+        summary.textContent = "Loading products…";
+        productsBody.innerHTML = "";
+        try {
+          const response = await fetch(`${API_ROOT}areas/${area}/products`);
+          if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+          }
+          const data = await response.json();
+          summary.textContent = `Showing ${data.products.length} products for ${data.area}. Click a row for more details.`;
+          renderProducts(data.products);
+          productSearch.value = "";
+          productSearch.disabled = false;
+          productSearch.focus();
+          areaSelect.dataset.products = JSON.stringify(data.products);
+        } catch (error) {
+          console.error(error);
+          summary.textContent = "Unable to load products for the selected area.";
+          productsBody.innerHTML =
+            '<tr><td colspan="3">Unable to fetch product data at the moment.</td></tr>';
+          showFeedback("Fetching product data failed. Please try again later.", true);
+        }
+      }
+
+      async function showProductDetails(product) {
+        hideFeedback();
+        const area = areaSelect.value;
+        if (!area) return;
+        try {
+          const response = await fetch(
+            `${API_ROOT}areas/${encodeURIComponent(area)}/products/${encodeURIComponent(
+              product.id
+            )}`
+          );
+          if (!response.ok) throw new Error("Unable to load product details");
+          const details = await response.json();
+          const message = `Best price for ${details.name} is $${details.price.toFixed(
+            2
+          )} at ${details.store} (${details.address}).`;
+          showFeedback(message);
+        } catch (error) {
+          console.error(error);
+          showFeedback("Unable to load product details.", true);
+        }
+      }
+
+      areaSelect.addEventListener("change", () => {
+        const area = areaSelect.value;
+        if (!area) return;
+        fetchProducts(area);
+      });
+
+      productSearch.addEventListener("input", (event) => {
+        const stored = areaSelect.dataset.products;
+        if (!stored) return;
+        try {
+          const products = JSON.parse(stored);
+          renderProducts(products, event.target.value);
+        } catch (error) {
+          console.error("Unable to parse cached products", error);
+        }
+      });
+
+      fetchAreas();
+    </script>
+  </body>
+</html>
