@@ -3,9 +3,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+try:
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+except ModuleNotFoundError as exc:  # pragma: no cover - exercised when FastAPI is missing
+    raise ModuleNotFoundError(
+        "FastAPI is required to run this application. Install the dependencies with "
+        "`pip install -r requirements.txt` before starting the server."
+    ) from exc
 
 from .services import (
     AreaNotFoundError,
