@@ -1,11 +1,34 @@
 """FastAPI application exposing product price comparisons across stores."""
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
 
-from .services import AreaNotFoundError, find_product, get_available_areas, summarize_cheapest_products
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from .services import (
+    AreaNotFoundError,
+    find_product,
+    get_available_areas,
+    summarize_cheapest_products,
+)
 
 app = FastAPI(title="Deal Finder", description="Compare store prices per area", version="0.1.0")
+
+static_directory = Path(__file__).resolve().parent / "static"
+if static_directory.exists():
+    app.mount("/static", StaticFiles(directory=static_directory), name="static")
+
+
+@app.get("/", response_class=FileResponse)
+def serve_frontend() -> FileResponse:
+    """Serve the single-page frontend that consumes the API."""
+
+    index_file = static_directory / "index.html"
+    if not index_file.exists():
+        raise HTTPException(status_code=404, detail="Frontend assets are unavailable")
+    return FileResponse(index_file)
 
 
 @app.get("/areas")
